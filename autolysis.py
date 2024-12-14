@@ -49,14 +49,25 @@ def read_csv(filepath):
         # If there's a UnicodeDecodeError, try reading the file with a different encoding
         return pd.read_csv(filepath, encoding="latin1")
 
-# Define a function to generate a summary of a DataFrame
+# Define a function to generate a summary of a DataFrame, including outlier detection
 def generate_summary(df: pd.DataFrame) -> dict:
     buffer = io.StringIO()
     df.info(buf=buffer)
+    
+    # Filter numeric columns for outlier detection
+    numeric_df = df.select_dtypes(include=['number'])
+    
+    # Detect outliers using IQR method for numeric columns only
+    Q1 = numeric_df.quantile(0.25)
+    Q3 = numeric_df.quantile(0.75)
+    IQR = Q3 - Q1
+    outliers = ((numeric_df < (Q1 - 1.5 * IQR)) | (numeric_df > (Q3 + 1.5 * IQR))).sum()
+
     summary = {
         "info": buffer.getvalue(),
         "description": df.describe().to_string(),
         "missing_values": (df.isnull().sum().to_string()),
+        "outliers": outliers.to_string()  # Add the outlier count for each numeric column
     }
     return summary
 
@@ -189,18 +200,7 @@ def analyze_with_openai(summary: dict, analysis_type: str):
     except Exception as e:
         logging.error(f"Error in OpenAI analysis ({analysis_type}): {e}")
         return {"error": str(e)}
-
-# Set global style for visualizations
-sns.set_theme(style="whitegrid", palette="pastel")
-plt.rcParams.update({
-    'axes.titlesize': 10,
-    'axes.labelsize': 8,
-    'xtick.labelsize': 8,
-    'ytick.labelsize': 8,
-    'legend.fontsize': 8,
-    'figure.figsize': (6, 6)
-})
-
+    
 def generate_bubble_map(df: pd.DataFrame, clustering_response: dict):
     """
     Generate and save a bubble map based on clustering columns.
@@ -216,14 +216,19 @@ def generate_bubble_map(df: pd.DataFrame, clustering_response: dict):
         if "columns" in clustering_response:
             clustering_columns = clustering_response["columns"]
 
+        # Ensure the selected columns are valid and present in the DataFrame
         if clustering_columns and isinstance(clustering_columns, list) and all(col in df.columns for col in clustering_columns):
+            # Handle missing values by imputing or dropping
             df_selected = df[clustering_columns]
-            if df_selected.isnull().any().any():
+            
+            if df_selected.isnull().any().any():  # Check for NaNs
                 logging.warning("NaN values detected. Imputing missing values with column means.")
-                df_selected = df_selected.fillna(df_selected.mean())
+                df_selected = df_selected.dropna()
 
+            # Normalize the data using z-scores
             df_normalized = df_selected.apply(zscore)
 
+            # Perform clustering (e.g., KMeans with 3 clusters for demonstration purposes)
             kmeans = KMeans(n_clusters=3, random_state=42)
             df_normalized['Cluster'] = kmeans.fit_predict(df_normalized)
 
@@ -290,15 +295,23 @@ def generate_barplot(df: pd.DataFrame, barplot_response: dict):
             # Handle missing values by dropping them
             df_selected = df[[x_col, y_col]].dropna()
 
-            plt.figure(figsize=(10, 6))
-            sns.barplot(data=df_selected, x=x_col, y=y_col, palette="coolwarm")
-            plt.title("Barplot Analysis", fontsize=16, fontweight='bold')
-            plt.xlabel(x_col, fontsize=12)
-            plt.ylabel(y_col, fontsize=12)
+            # Create a barplot using the selected columns
+            plt.figure(figsize=(8, 6))
+            sns.barplot(data=df_selected, x=x_col, y=y_col, palette="viridis")
 
+            plt.title("Barplot Analysis")
+            plt.xlabel(x_col)
+            plt.ylabel(y_col)
+
+            # Save the plot to an in-memory buffer (PNG)
+            img_buffer = io.BytesIO()
+            plt.savefig(img_buffer, format='png')
+            img_buffer.seek(0)  # Rewind the buffer to the beginning
+
+            # Save it locally as a PNG file
             file_path = "barplot_analysis.png"
-            plt.savefig(file_path, bbox_inches='tight')
-            plt.close()
+            with open(file_path, "wb") as f:
+                f.write(img_buffer.read())
 
             logging.info("Barplot generated and saved successfully.")
             return file_path
@@ -308,7 +321,7 @@ def generate_barplot(df: pd.DataFrame, barplot_response: dict):
     except Exception as e:
         logging.error(f"Error generating barplot: {e}")
         return None
-
+    
 def generate_correlation_heatmap(df: pd.DataFrame, correlation_response: dict):
     """
     Generate and save a correlation heatmap based on the specified columns.
@@ -321,25 +334,41 @@ def generate_correlation_heatmap(df: pd.DataFrame, correlation_response: dict):
         str: The file path of the saved heatmap image.
     """
     try:
+        # Check if 'columns' key exists in correlation_response
         if isinstance(correlation_response, dict) and "columns" in correlation_response:
             columns = correlation_response["columns"]
 
+            # Ensure columns are valid and are present in the DataFrame
             if columns and isinstance(columns, list) and all(col in df.columns for col in columns):
-                df_selected = df[columns]
+                if not df.empty:
+                    # Select the relevant columns from the DataFrame
+                    df_selected = df[columns]
 
-                corr_matrix = df_selected.corr()
+                    # Calculate the correlation matrix
+                    corr_matrix = df_selected.corr()
 
-                plt.figure(figsize=(10, 8))
-                sns.heatmap(corr_matrix, annot=True, cmap="coolwarm", linewidths=0.5, fmt='.2f')
-                plt.title("Correlation Heatmap", fontsize=16, fontweight='bold')
-                plt.tight_layout()
+                    # Create a heatmap using seaborn
+                    plt.figure(figsize=(8, 8))
+                    sns.heatmap(corr_matrix, annot=True, cmap="coolwarm", linewidths=0.5)
 
-                file_path = "correlation_heatmap.png"
-                plt.savefig(file_path, bbox_inches='tight')
-                plt.close()
+                    plt.title("Correlation Heatmap")
+                    plt.tight_layout()
 
-                logging.info("Heatmap generated and saved successfully.")
-                return file_path
+                    # Save the plot to an in-memory buffer (PNG)
+                    img_buffer = io.BytesIO()
+                    plt.savefig(img_buffer, format='png')
+                    img_buffer.seek(0)  # Rewind the buffer to the beginning
+
+                    # Save it locally as a PNG file
+                    file_path = "correlation_heatmap.png"
+                    with open(file_path, "wb") as f:
+                        f.write(img_buffer.read())
+
+                    logging.info("Heatmap generated and saved successfully.")
+                    return file_path
+                else:
+                    logging.warning("The DataFrame is empty. Cannot create heatmap.")
+                    return None
             else:
                 logging.warning("Suggested columns are invalid or missing in the DataFrame.")
                 return None
@@ -349,7 +378,7 @@ def generate_correlation_heatmap(df: pd.DataFrame, correlation_response: dict):
     except Exception as e:
         logging.error(f"Error generating correlation heatmap: {e}")
         return None
-
+    
 def generate_line_chart(df: pd.DataFrame, time_series_response: dict):
     """
     Generate and save a line chart based on the specified columns for time series analysis.
@@ -362,28 +391,42 @@ def generate_line_chart(df: pd.DataFrame, time_series_response: dict):
         str: The file path of the saved line chart image.
     """
     try:
+        # Check if 'columns' key exists in time_series_response
         if isinstance(time_series_response, dict) and "columns" in time_series_response:
             columns = time_series_response["columns"]
 
+            # Ensure columns are valid and are present in the DataFrame
             if columns and isinstance(columns, list) and all(col in df.columns for col in columns):
-                df_selected = df[columns]
+                if not df.empty:
+                    # Select the relevant columns from the DataFrame
+                    df_selected = df[columns]
 
-                plt.figure(figsize=(12, 6))
-                for column in columns:
-                    plt.plot(df_selected.index, df_selected[column], label=column, linewidth=2)
+                    # Create a line plot for each column
+                    plt.figure(figsize=(10, 6))
+                    for column in columns:
+                        plt.plot(df_selected.index, df_selected[column], label=column)
 
-                plt.title("Time Series Line Chart", fontsize=16, fontweight='bold')
-                plt.xlabel("Date", fontsize=12)
-                plt.ylabel("Value", fontsize=12)
-                plt.legend(title="Variables", loc="upper left")
-                plt.tight_layout()
+                    plt.title("Time Series Line Chart")
+                    plt.xlabel("Date")
+                    plt.ylabel("Value")
+                    plt.legend()
+                    plt.tight_layout()
 
-                file_path = "time_series_line_chart.png"
-                plt.savefig(file_path, bbox_inches='tight')
-                plt.close()
+                    # Save the plot to an in-memory buffer (PNG)
+                    img_buffer = io.BytesIO()
+                    plt.savefig(img_buffer, format='png')
+                    img_buffer.seek(0)  # Rewind the buffer to the beginning
 
-                logging.info("Line chart generated and saved successfully.")
-                return file_path
+                    # Save it locally as a PNG file
+                    file_path = "time_series_line_chart.png"
+                    with open(file_path, "wb") as f:
+                        f.write(img_buffer.read())
+
+                    logging.info("Line chart generated and saved successfully.")
+                    return file_path
+                else:
+                    logging.warning("The DataFrame is empty. Cannot create line chart.")
+                    return None
             else:
                 logging.warning("Suggested columns are invalid or missing in the DataFrame.")
                 return None
