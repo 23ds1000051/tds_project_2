@@ -60,9 +60,6 @@ def generate_summary(df: pd.DataFrame) -> dict:
     }
     return summary
 
-# Initialize FastAPI app
-app = FastAPI()
-
 # Parse command-line arguments and read the CSV file
 args = parse_args()
 df = read_csv(args.csv_file)
