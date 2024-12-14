@@ -74,8 +74,8 @@ def call_openai_api(input_messages, model="gpt-4o-mini"):
     """
     Call the OpenAI API to process data and log the raw response for debugging.
     """
-    #url = "https://aiproxy.sanand.workers.dev/openai/v1/chat/completions"
-    url = "https://api.openai.com/v1/chat/completions"
+    url = "https://aiproxy.sanand.workers.dev/openai/v1/chat/completions"
+    #url = "https://api.openai.com/v1/chat/completions"
     headers = {
         "Authorization": f"Bearer {api_token}",
         "Content-Type": "application/json",
@@ -432,8 +432,8 @@ def call_openai_api_for_story(summary, plot_file_paths, analysis_type="trend_ana
     Call the OpenAI API to generate a compelling story with a detailed analysis
     of the provided summary and plot images, with dynamic customization.
     """
-    #url = "https://aiproxy.sanand.workers.dev/openai/v1/chat/completions"
-    url = "https://api.openai.com/v1/chat/completions"
+    url = "https://aiproxy.sanand.workers.dev/openai/v1/chat/completions"
+    #url = "https://api.openai.com/v1/chat/completions"
 
     # api_token = {api_token}  # Replace with your actual API token
     headers = {
