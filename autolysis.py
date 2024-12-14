@@ -49,25 +49,14 @@ def read_csv(filepath):
         # If there's a UnicodeDecodeError, try reading the file with a different encoding
         return pd.read_csv(filepath, encoding="latin1")
 
-# Define a function to generate a summary of a DataFrame, including outlier detection
+# Define a function to generate a summary of a DataFrame
 def generate_summary(df: pd.DataFrame) -> dict:
     buffer = io.StringIO()
     df.info(buf=buffer)
-    
-    # Filter numeric columns for outlier detection
-    numeric_df = df.select_dtypes(include=['number'])
-    
-    # Detect outliers using IQR method for numeric columns only
-    Q1 = numeric_df.quantile(0.25)
-    Q3 = numeric_df.quantile(0.75)
-    IQR = Q3 - Q1
-    outliers = ((numeric_df < (Q1 - 1.5 * IQR)) | (numeric_df > (Q3 + 1.5 * IQR))).sum()
-
     summary = {
         "info": buffer.getvalue(),
         "description": df.describe().to_string(),
         "missing_values": (df.isnull().sum().to_string()),
-        "outliers": outliers.to_string()  # Add the outlier count for each numeric column
     }
     return summary
 
@@ -568,6 +557,16 @@ def display_summary():
         clustering_response = analyze_with_openai(summary, "clustering analysis")
         barplot_response = analyze_with_openai(summary, "barplot analysis")
         time_series_response = analyze_with_openai(summary, "time series analysis")
+
+        # Display raw responses
+        logging.info("Correlation Analysis Response:")
+        logging.info(correlation_response)
+        logging.info("Clustering Analysis Response:")
+        logging.info(clustering_response)
+        logging.info("Barplot Analysis Response:")
+        logging.info(barplot_response)
+        logging.info("Time Series Analysis Response:")
+        logging.info(time_series_response)
 
         correlation_map = generate_correlation_heatmap(df, correlation_response)
         bubble_map = generate_bubble_map(df, clustering_response)
