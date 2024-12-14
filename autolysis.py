@@ -60,9 +60,6 @@ def generate_summary(df: pd.DataFrame) -> dict:
     }
     return summary
 
-# Initialize FastAPI app
-app = FastAPI()
-
 # Parse command-line arguments and read the CSV file
 args = parse_args()
 df = read_csv(args.csv_file)
@@ -546,6 +543,8 @@ def write_story_to_readme(story, plot_file_paths):
 
     logging.info("Story and images written to README.md successfully.")
 
+# Initialize FastAPI app
+app = FastAPI()
 
 @app.get("/", response_class=HTMLResponse)
 def display_summary():
