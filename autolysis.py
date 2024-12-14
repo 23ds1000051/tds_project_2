@@ -444,7 +444,8 @@ def call_openai_api_for_story(summary, plot_file_paths, analysis_type="trend_ana
         "content": (
             "You are a financial analyst and storyteller. Your task is to generate a clear, engaging narrative "
             "based on a summary of financial data and accompanying visualizations. Provide insights, analyze trends, "
-            "and highlight implications using the provided data. Adapt your analysis style based on the type of data."
+            "and highlight implications using the provided data. Adapt your analysis style based on the type of data. "
+            "Additionally, make direct observations on the clarity, design, and effectiveness of the visualizations."
         ),
     }
 
@@ -469,7 +470,8 @@ def call_openai_api_for_story(summary, plot_file_paths, analysis_type="trend_ana
             "Please incorporate relevant observations from these plots in your analysis. "
             "If the plot shows a trend, anomaly, or pattern, explain its relevance to the summary. "
             "For specific plot types, adjust the focus: for correlation heatmaps, analyze relationships; for time-series plots, "
-            "highlight changes over time."
+            "highlight changes over time. Additionally, make direct observations on the clarity and design of each plot, "
+            "commenting on how effectively the plots convey the insights and trends in the data."
         ),
     }
 
