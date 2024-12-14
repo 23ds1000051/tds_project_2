@@ -25,8 +25,6 @@ import matplotlib.pyplot as plt
 import matplotlib
 matplotlib.use('Agg')
 from sklearn.cluster import KMeans, AgglomerativeClustering
-from sklearn.preprocessing import StandardScaler
-from sklearn.cluster import KMeans
 import json
 import os
 import logging
@@ -229,25 +227,31 @@ def generate_bubble_map(df: pd.DataFrame, clustering_response: dict):
             kmeans = KMeans(n_clusters=3, random_state=42)
             df_normalized['Cluster'] = kmeans.fit_predict(df_normalized)
 
-            plt.figure(figsize=(8, 8))
+            # Create a bubble map using the first two clustering columns and cluster labels
+            plt.figure(figsize=(6, 6))
             sns.scatterplot(
                 data=df_normalized,
                 x=clustering_columns[0],
                 y=clustering_columns[1],
                 hue='Cluster',
-                size=clustering_columns[2] if len(clustering_columns) > 2 else None,
+                size=clustering_columns[3] if len(clustering_columns) > 3 else None,
                 sizes=(50, 300),
                 palette='viridis',
                 alpha=0.7
             )
-            plt.title("Bubble Map for Clustering", fontsize=16, fontweight='bold')
-            plt.xlabel(clustering_columns[0], fontsize=12)
-            plt.ylabel(clustering_columns[1], fontsize=12)
-            plt.legend(title="Cluster", loc="upper right")
+            plt.title("Bubble Map for Clustering")
+            plt.xlabel(clustering_columns[0])
+            plt.ylabel(clustering_columns[1])
 
+            # Save the plot to an in-memory buffer (PNG)
+            img_buffer = io.BytesIO()
+            plt.savefig(img_buffer, format='png')
+            img_buffer.seek(0)  # Rewind the buffer to the beginning
+
+            # Save it locally as a PNG file
             file_path = "clustering_bubble_map.png"
-            plt.savefig(file_path, bbox_inches='tight')
-            plt.close()
+            with open(file_path, "wb") as f:
+                f.write(img_buffer.read())
 
             logging.info("Bubble map generated and saved successfully.")
             return file_path
@@ -257,14 +261,14 @@ def generate_bubble_map(df: pd.DataFrame, clustering_response: dict):
     except Exception as e:
         logging.error(f"Error generating bubble map: {e}")
         return None
-
+    
 def generate_barplot(df: pd.DataFrame, barplot_response: dict):
     """
     Generate and save a barplot based on the specified columns.
 
     Args:
         df (pd.DataFrame): The input DataFrame containing data for analysis.
-        barplot_response (dict): A dictionary containing column information for the barplot.
+        clustering_response (dict): A dictionary containing column information for the barplot.
 
     Returns:
         str: The file path of the saved barplot image.
@@ -273,7 +277,9 @@ def generate_barplot(df: pd.DataFrame, barplot_response: dict):
         if "columns" in barplot_response:
             barplot_columns = barplot_response["columns"]
 
+        # Ensure the selected columns are valid and present in the DataFrame
         if barplot_columns and isinstance(barplot_columns, list) and all(col in df.columns for col in barplot_columns):
+            # Select the first column for the x-axis and the second column for the y-axis
             x_col = barplot_columns[0]
             y_col = barplot_columns[1] if len(barplot_columns) > 1 else None
 
@@ -281,6 +287,7 @@ def generate_barplot(df: pd.DataFrame, barplot_response: dict):
                 logging.warning("Barplot requires at least two columns: one for x and one for y.")
                 return None
 
+            # Handle missing values by dropping them
             df_selected = df[[x_col, y_col]].dropna()
 
             plt.figure(figsize=(10, 6))
