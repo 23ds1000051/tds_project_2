@@ -426,10 +426,10 @@ def generate_line_chart(df: pd.DataFrame, time_series_response: dict):
         logging.error(f"Error generating line chart: {e}")
         return None
     
-def call_openai_api_for_story(summary, plot_file_paths, model="gpt-4o-mini"):
+def call_openai_api_for_story(summary, plot_file_paths, analysis_type="trend_analysis", model="gpt-4o-mini"):
     """
     Call the OpenAI API to generate a compelling story with a detailed analysis
-    of the provided summary and plot images.
+    of the provided summary and plot images, with dynamic customization.
     """
     url = "https://aiproxy.sanand.workers.dev/openai/v1/chat/completions"
     # api_token = {api_token}  # Replace with your actual API token
@@ -438,56 +438,76 @@ def call_openai_api_for_story(summary, plot_file_paths, model="gpt-4o-mini"):
         "Content-Type": "application/json",
     }
 
-    # System message defines the assistant's behavior
+    # System message with dynamic task assignment
     system_message = {
         "role": "system",
         "content": (
-            "You are a highly skilled financial analyst and storyteller. "
-            "Your task is to create detailed, insightful, and engaging narratives from summaries, "
-            "data plots, and trend observations. Use descriptive language to explain the insights clearly, "
-            "compare data trends, highlight patterns, and suggest implications of the analysis."
+            "You are a financial analyst and storyteller. Your task is to generate a clear, engaging narrative "
+            "based on a summary of financial data and accompanying visualizations. Provide insights, analyze trends, "
+            "and highlight implications using the provided data. Adapt your analysis style based on the type of data."
         ),
     }
 
-    # User's prompt with the summary
+    # Dynamic handling of the summary prompt
     user_summary_message = {
         "role": "user",
         "content": (
-            f"Here is a detailed summary of the financial data:{summary}\n\n"
-            "Analyze the trends, patterns, anomalies, and key insights described in this summary. "
-            "Compare different data points, highlight relationships between variables, and explore any contrasts or changes "
-            "in the data over time. Formulate an in-depth analysis that captures the essence of this summary."
+            f"Summary: {summary}\n\n"
+            "Analyze the trends, patterns, and key insights in this summary. "
+            "Provide specific recommendations based on the data provided. "
+            "If there are noticeable patterns or anomalies, be sure to highlight them."
         ),
     }
 
-    # Adding plot file paths to the context
+    # Dynamic plot context handling: adapt to the number and type of plots
     plot_context = "\n".join([f"Plot {i+1}: {path}" for i, path in enumerate(plot_file_paths)])
     user_plots_message = {
         "role": "user",
         "content": (
-            "The following plots are associated with the analysis:\n"
+            "Associated plots:\n" 
             f"{plot_context}\n\n"
-            "Please incorporate detailed observations from these plots into your analysis and story. "
-            "For each plot, describe its key features, relationships, and trends it represents. "
-            "Connect the observations from the plots to the findings in the summary and analyze how they "
-            "support, contrast, or expand upon the summary data."
+            "Please incorporate relevant observations from these plots in your analysis. "
+            "If the plot shows a trend, anomaly, or pattern, explain its relevance to the summary. "
+            "For specific plot types, adjust the focus: for correlation heatmaps, analyze relationships; for time-series plots, "
+            "highlight changes over time."
         ),
     }
 
-    # Combined analysis request
-    analysis_request_message = {
-        "role": "user",
-        "content": (
-            "Based on the summary and plot data, craft a cohesive and compelling narrative. "
-            "Your story should also include the following. Include relavant data points in each analysis for more compelling story:"
-            "1. Provide a high-level overview of the trends and observations.\n"
-            "2. Compare and contrast key data points, highlighting notable differences or similarities.\n"
-            "3. Explain the implications of the trends and anomalies for decision-making or forecasting.\n"
-            "4. Seamlessly integrate both the summary and plot observations into a unified story.\n"
-            "5. Use an engaging and descriptive tone that is easy to follow for both financial experts and general readers.\n"
-            "6. Analysis of each plot. Correlation Heatmap Analysis, Clustering Analysis, Barplot analysis, Time series analysis."
-        ),
-    }
+    # Dynamic analysis request based on the analysis type
+    if analysis_type == "trend_analysis":
+        analysis_request_message = {
+            "role": "user",
+            "content": (
+                "Based on the summary and plots, craft a cohesive narrative focusing on trend analysis. "
+                "Your story should include the following:\n"
+                "1. High-level overview of the observed trends.\n"
+                "2. Key data points that showcase the trends.\n"
+                "3. Implications of these trends for forecasting or decision-making."
+            ),
+        }
+    elif analysis_type == "clustering_analysis":
+        analysis_request_message = {
+            "role": "user",
+            "content": (
+                "Based on the summary and plots, craft an analysis focusing on clustering or grouping patterns. "
+                "Your story should include the following:\n"
+                "1. Explanation of identified clusters or groups.\n"
+                "2. Correlations between the clusters and the financial metrics.\n"
+                "3. How these clusters can inform future decisions or strategies."
+            ),
+        }
+    else:
+        # Default case for other types of analysis (e.g., anomaly detection, forecasting)
+        analysis_request_message = {
+            "role": "user",
+            "content": (
+                "Based on the summary and plots, generate a narrative focusing on the key patterns, anomalies, or "
+                "insights found. Your story should include:\n"
+                "1. Analysis of any significant patterns or anomalies.\n"
+                "2. Possible implications of these insights on financial strategies.\n"
+                "3. Correlation or trends observed in the data."
+            ),
+        }
 
     # Payload to send to the API
     payload = {
@@ -528,7 +548,6 @@ def call_openai_api_for_story(summary, plot_file_paths, model="gpt-4o-mini"):
         logging.error(f"Unhandled exception: {e}")
         raise
 
-
 def write_story_to_readme(story, plot_file_paths):
     """
     Write the generated story along with the plot images to a README.md file.
@@ -545,7 +564,6 @@ def write_story_to_readme(story, plot_file_paths):
 
 # Initialize FastAPI app
 app = FastAPI()
-
 @app.get("/", response_class=HTMLResponse)
 def display_summary():
     try:
