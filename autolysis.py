@@ -543,6 +543,8 @@ def write_story_to_readme(story, plot_file_paths):
 
     logging.info("Story and images written to README.md successfully.")
 
+# Initialize FastAPI app
+app = FastAPI()
 
 @app.get("/", response_class=HTMLResponse)
 def display_summary():
