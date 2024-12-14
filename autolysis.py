@@ -475,43 +475,41 @@ def call_openai_api_for_story(summary, plot_file_paths, analysis_type="trend_ana
         ),
     }
 
-    # Dynamic analysis request based on the analysis type
-    if analysis_type == "trend_analysis":
-        analysis_request_message = {
-            "role": "user",
-            "content": (
-                "Based on the summary and plots, craft a cohesive narrative focusing on trend analysis. "
-                "Your story should include the following:\n"
-                "1. High-level overview of the observed trends.\n"
-                "2. Key data points that showcase the trends.\n"
-                "3. Implications of these trends for forecasting or decision-making."
-            ),
-        }
-    elif analysis_type == "clustering_analysis":
-        analysis_request_message = {
-            "role": "user",
-            "content": (
-                "Based on the summary and plots, craft an analysis focusing on clustering or grouping patterns. "
-                "Your story should include the following:\n"
-                "1. Explanation of identified clusters or groups.\n"
-                "2. Correlations between the clusters and the financial metrics.\n"
-                "3. How these clusters can inform future decisions or strategies."
-            ),
-        }
-    else:
-        # Default case for other types of analysis (e.g., anomaly detection, forecasting)
-        analysis_request_message = {
-            "role": "user",
-            "content": (
-                "Based on the summary and plots, generate a narrative focusing on the key patterns, anomalies, or "
-                "insights found. Your story should include:\n"
-                "1. Analysis of any significant patterns or anomalies.\n"
-                "2. Possible implications of these insights on financial strategies.\n"
-                "3. Correlation or trends observed in the data."
-            ),
-        }
+    # Recursive agentic feedback loop: initial analysis request
+    def generate_analysis_request(iteration=1):
+        if iteration == 1:
+            return {
+                "role": "user",
+                "content": (
+                    "Based on the summary and plots, craft a cohesive narrative focusing on trend analysis. "
+                    "Your story should include the following:\n"
+                    "1. High-level overview of the observed trends.\n"
+                    "2. Key data points that showcase the trends.\n"
+                    "3. Implications of these trends for forecasting or decision-making."
+                ),
+            }
+        elif iteration == 2:
+            return {
+                "role": "user",
+                "content": (
+                    "Please revisit the previous analysis and focus more on any identified anomalies or unexpected patterns "
+                    "that might have significant implications for decision-making."
+                ),
+            }
+        else:
+            return {
+                "role": "user",
+                "content": (
+                    "Please refine your analysis by incorporating any feedback or additional insights based on the most recent observations. "
+                    "Focus specifically on the relationship between identified trends and anomalies, and suggest actionable strategies."
+                ),
+            }
 
-    # Payload to send to the API
+    # Initialize first iteration's request message
+    iteration = 1
+    analysis_request_message = generate_analysis_request(iteration)
+
+    # Payload to send to the API for the first analysis
     payload = {
         "model": model,
         "messages": [
@@ -523,7 +521,7 @@ def call_openai_api_for_story(summary, plot_file_paths, analysis_type="trend_ana
     }
 
     try:
-        # Send the request to the OpenAI API
+        # Send the first request to the OpenAI API
         response = requests.post(url, headers=headers, json=payload)
         response.raise_for_status()  # Raise an exception for HTTP errors
 
@@ -533,9 +531,34 @@ def call_openai_api_for_story(summary, plot_file_paths, analysis_type="trend_ana
         # Log the raw response for debugging
         logging.info("OpenAI API Raw Response: %s", json.dumps(result, indent=4))
 
-        # Extract and return the story content
+        # Extract and return the story content for the first iteration
         story_content = result["choices"][0]["message"]["content"]
-        return story_content
+        logging.info(f"Story Content (Iteration {iteration}): {story_content}")
+
+        # Optionally, refine the analysis in the next iteration
+        iteration += 1
+        analysis_request_message = generate_analysis_request(iteration)
+
+        # Prepare the next request with refined analysis
+        refined_payload = {
+            "model": model,
+            "messages": [
+                system_message, 
+                user_summary_message, 
+                user_plots_message, 
+                analysis_request_message
+            ],
+        }
+
+        # Send the next request to refine the analysis (recursive iteration)
+        refined_response = requests.post(url, headers=headers, json=refined_payload)
+        refined_response.raise_for_status()  # Handle HTTP errors
+
+        refined_result = refined_response.json()
+        refined_story_content = refined_result["choices"][0]["message"]["content"]
+        logging.info(f"Refined Story Content (Iteration {iteration}): {refined_story_content}")
+
+        return refined_story_content
 
     except requests.exceptions.RequestException as req_error:
         logging.error(f"Request error: {req_error}")
