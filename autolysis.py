@@ -425,7 +425,7 @@ def generate_line_chart(df: pd.DataFrame, time_series_response: dict):
     except Exception as e:
         logging.error(f"Error generating line chart: {e}")
         return None
-    
+
 def call_openai_api_for_story(summary, plot_file_paths, analysis_type="trend_analysis", model="gpt-4o-mini"):
     """
     Call the OpenAI API to generate a compelling story with a detailed analysis
