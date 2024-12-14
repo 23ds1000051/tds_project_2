@@ -74,7 +74,8 @@ def call_openai_api(input_messages, model="gpt-4o-mini"):
     """
     Call the OpenAI API to process data and log the raw response for debugging.
     """
-    url = "https://aiproxy.sanand.workers.dev/openai/v1/chat/completions"
+    #url = "https://aiproxy.sanand.workers.dev/openai/v1/chat/completions"
+    url = "https://api.openai.com/v1/chat/completions"
     headers = {
         "Authorization": f"Bearer {api_token}",
         "Content-Type": "application/json",
@@ -431,7 +432,9 @@ def call_openai_api_for_story(summary, plot_file_paths, analysis_type="trend_ana
     Call the OpenAI API to generate a compelling story with a detailed analysis
     of the provided summary and plot images, with dynamic customization.
     """
-    url = "https://aiproxy.sanand.workers.dev/openai/v1/chat/completions"
+    #url = "https://aiproxy.sanand.workers.dev/openai/v1/chat/completions"
+    url = "https://api.openai.com/v1/chat/completions"
+
     # api_token = {api_token}  # Replace with your actual API token
     headers = {
         "Authorization": f"Bearer {api_token}",
@@ -442,7 +445,7 @@ def call_openai_api_for_story(summary, plot_file_paths, analysis_type="trend_ana
     system_message = {
         "role": "system",
         "content": (
-            "You are a financial analyst and storyteller. Your task is to generate a clear, engaging narrative "
+            "You are a financial analyst and storyteller. Your task is to generate a clear, engaging narrative story"
             "based on a summary of financial data and accompanying visualizations. Provide insights, analyze trends, "
             "and highlight implications using the provided data. Adapt your analysis style based on the type of data. "
             "Additionally, make direct observations on the clarity, design, and effectiveness of the visualizations."
@@ -454,6 +457,7 @@ def call_openai_api_for_story(summary, plot_file_paths, analysis_type="trend_ana
         "role": "user",
         "content": (
             f"Summary: {summary}\n\n"
+            "Create an interesting and engaging story based on the data and observations"
             "Analyze the trends, patterns, and key insights in this summary. "
             "Provide specific recommendations based on the data provided. "
             "If there are noticeable patterns or anomalies, be sure to highlight them."
